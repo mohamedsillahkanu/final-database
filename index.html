@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICF-SL Final Database - Column Selector & Exporter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@latest/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@latest/papaparse.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { margin: 0; padding: 20px; background-color: #ffffff; font-family: 'Oswald', Arial, sans-serif; color: #000000; font-weight: 500; }
+        .page-container { width: 100%; max-width: 1400px; margin: 0 auto; }
+        .page-header { background-color: #004080; color: #ffffff; padding: 25px 30px; text-align: center; margin-bottom: 15px; border-radius: 8px 8px 0 0; }
+        .logo-row { display: flex; justify-content: center; align-items: center; gap: 30px; margin-bottom: 15px; }
+        .logo-box { background: #ffffff; border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: center; }
+        .logo-box img { width: 100px; height: auto; border-radius: 6px; }
+        .page-header h3 { margin: 12px 0 5px; font-size: 14px; font-weight: 700; letter-spacing: 1px; color: #ffffff; }
+        .page-header .tagline { margin: 0; font-size: 10px; font-weight: 500; color: #ffffff; }
+        .page-header h1 { margin: 20px 0 10px; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: 1px; }
+        .page-header .subtitle { font-size: 14px; color: #ffffff; font-weight: 500; }
+        .content-card { border: 4px double #004080; border-radius: 12px; padding: 12px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); margin-bottom: 15px; }
+        .content-inner { padding: 25px; }
+        .upload-section { background: #f8f9fa; padding: 2rem; border-radius: 8px; border: 2px dashed #004080; text-align: center; margin: 1.5rem 0; transition: all 0.3s ease; }
+        .upload-section:hover { border-color: #0056b3; background: #e7f3ff; }
+        .upload-section.file-loaded { border-color: #28a745; border-style: solid; background: #d4edda; }
+        .upload-section h3 { color: #004080; margin-bottom: 1rem; font-size: 18px; font-weight: 700; }
+        .upload-section p { color: #000000; font-weight: 500; font-size: 14px; }
+        .file-input-wrapper { position: relative; display: inline-block; cursor: pointer; background: #004080; color: white; padding: 14px 24px; border-radius: 6px; border: 2px solid #004080; font-size: 14px; font-weight: 700; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Oswald', Arial, sans-serif; margin-top: 1rem; }
+        .file-input-wrapper:hover { background: #0056b3; border-color: #0056b3; }
+        .file-input-wrapper input[type="file"] { position: absolute; left: -9999px; }
+        .section-header { background-color: #004080; color: #ffffff; padding: 15px 20px; margin-bottom: 20px; border-radius: 6px; display: flex; align-items: center; gap: 15px; }
+        .section-icon { background: #ffffff; color: #004080; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+        .section-title { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin: 1.5rem 0; }
+        .stats-card { background: #f8f9fa; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); text-align: center; border: 2px solid #004080; transition: all 0.2s; }
+        .stats-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 64, 128, 0.2); }
+        .stats-card h4 { color: #666; font-size: 11px; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .stats-card .metric-value { font-size: 1.6rem; color: #004080; margin-bottom: 0.25rem; font-weight: 700; }
+        .stats-card p { color: #666; font-size: 11px; }
+        .stats-card.success { border-color: #28a745; }
+        .stats-card.success .metric-value { color: #28a745; }
+        .btn { padding: 14px 24px; border: 2px solid #004080; border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Oswald', Arial, sans-serif; transition: all 0.2s; margin: 5px; }
+        .btn-primary { background: #004080; color: #ffffff; }
+        .btn-primary:hover { background: #0056b3; border-color: #0056b3; }
+        .btn-secondary { background: #ffffff; color: #004080; }
+        .btn-secondary:hover { background: #004080; color: #ffffff; }
+        .btn-gold { background: #ffc107; color: #000000; border-color: #ffc107; }
+        .btn-gold:hover { background: #e0a800; border-color: #e0a800; }
+        .btn-success { background: #28a745; color: #ffffff; border-color: #28a745; }
+        .btn-success:hover { background: #218838; border-color: #218838; }
+        .btn:disabled { background: #6c757d; border-color: #6c757d; color: #ffffff; cursor: not-allowed; opacity: 0.6; }
+        .alert { padding: 1rem; border-radius: 6px; margin: 1rem 0; font-weight: 500; }
+        .alert-success { background: #d4edda; border: 2px solid #28a745; color: #155724; }
+        .alert-error { background: #f8d7da; border: 2px solid #dc3545; color: #721c24; }
+        .alert-warning { background: #fff3cd; border: 2px solid #ffc107; color: #856404; }
+        .alert-info { background: #e7f3ff; border: 2px solid #004080; color: #004080; }
+        .hidden { display: none !important; }
+        .config-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border: 2px solid #004080; margin: 1rem 0; }
+        .config-card h4 { color: #004080; margin-bottom: 1rem; font-size: 16px; font-weight: 700; }
+        .column-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; max-height: 400px; overflow-y: auto; padding: 1rem; border: 2px solid #004080; border-radius: 6px; background: #ffffff; }
+        .column-item { display: flex; align-items: center; padding: 0.75rem; cursor: pointer; border-radius: 6px; transition: all 0.2s ease; color: #000000; background: #f8f9fa; border: 2px solid transparent; }
+        .column-item:hover { background: #e7f3ff; border-color: #004080; }
+        .column-item.selected { background: #d4edda; border-color: #28a745; }
+        .column-item input { margin-right: 0.75rem; accent-color: #004080; width: 18px; height: 18px; }
+        .column-item .col-name { flex: 1; font-weight: 500; font-size: 14px; }
+        .column-item .col-type { font-size: 11px; color: #666; background: #e9ecef; padding: 2px 8px; border-radius: 4px; }
+        .loading-spinner { border: 4px solid #e7f3ff; border-top: 4px solid #004080; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 1.5rem 0; }
+        .feature-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border: 2px solid #004080; }
+        .feature-card h4 { color: #004080; margin-bottom: 1rem; font-size: 16px; font-weight: 700; text-transform: uppercase; }
+        .feature-card ul { color: #000000; line-height: 1.8; padding-left: 1.5rem; }
+        .feature-card li { margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; }
+        .feature-card strong { color: #004080; }
+        .page-footer { background-color: #004080; color: #ffffff; padding: 20px 30px; text-align: center; font-size: 13px; line-height: 1.7; font-weight: 500; border-radius: 0 0 8px 8px; }
+        .page-footer p { margin: 6px 0 0; font-size: 12px; color: #ffffff; }
+        .file-info { background: #d4edda; border: 2px solid #28a745; padding: 1rem; border-radius: 6px; margin-top: 1rem; text-align: left; }
+        .file-info h5 { color: #155724; margin-bottom: 0.5rem; font-size: 14px; }
+        .file-info p { color: #155724; font-size: 13px; margin: 0.25rem 0; }
+        .selection-summary { background: #e7f3ff; border: 2px solid #004080; padding: 1rem; border-radius: 6px; margin: 1rem 0; }
+        .selection-summary h5 { color: #004080; margin-bottom: 0.5rem; font-size: 14px; }
+        .selection-summary .selected-list { font-size: 13px; color: #004080; max-height: 100px; overflow-y: auto; }
+        .preview-table { max-height: 350px; overflow: auto; border-radius: 6px; margin: 1rem 0; border: 2px solid #004080; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #004080; color: #ffffff; padding: 0.6rem; text-align: left; position: sticky; top: 0; font-weight: 700; white-space: nowrap; }
+        td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #ddd; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+        tr:nth-child(even) { background: #f8f9fa; }
+        tr:hover { background: #e7f3ff; }
+        .action-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 1.5rem 0; }
+        .search-box { width: 100%; padding: 0.75rem 1rem; border: 2px solid #004080; border-radius: 6px; font-size: 14px; font-family: 'Oswald', Arial, sans-serif; margin-bottom: 1rem; }
+        .search-box:focus { outline: none; border-color: #0056b3; box-shadow: 0 0 0 3px rgba(0, 64, 128, 0.1); }
+        .column-actions { display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+        .column-actions .btn { padding: 8px 16px; font-size: 12px; }
+        .order-badge { background: #004080; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 8px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f8f9fa; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #004080; border-radius: 4px; }
+        @media (max-width: 768px) { body { padding: 10px; } .content-inner { padding: 15px; } .page-header h1 { font-size: 20px; } .column-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <div class="page-header">
+            <div class="logo-row">
+                <div class="logo-box">
+                    <img src="https://github.com/mohamedsillahkanu/gdp-dashboard-2/raw/6c7463b0d5c3be150aafae695a4bcbbd8aeb1499/ICF-SL.jpg" alt="ICF-SL Logo">
+                </div>
+            </div>
+            <h3>Informatics Consultancy Firm-Sierra Leone<br>(ICF-SL)</h3>
+            <p class="tagline"><em>Driving Data-Driven Solutions for Health and Development</em></p>
+            <h1>FINAL DATABASE</h1>
+            <p class="subtitle">Upload Data, Select Columns & Export Your Final Dataset</p>
+        </div>
+
+        <div class="content-card">
+            <div class="content-inner">
+                <div id="alertContainer"></div>
+
+                <!-- Upload Section -->
+                <div id="uploadSection">
+                    <div class="upload-section" id="uploadArea">
+                        <h3>📁 UPLOAD YOUR DATA FILE</h3>
+                        <p>Upload a CSV or Excel file to select columns for export</p>
+                        <label class="file-input-wrapper">
+                            Choose File
+                            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+                        </label>
+                        <div id="fileInfo" class="hidden"></div>
+                    </div>
+
+                    <div id="loading" class="hidden" style="text-align: center; padding: 2rem;">
+                        <div class="loading-spinner"></div>
+                        <p id="loadingText" style="color: #004080; font-weight: 700;">Processing file...</p>
+                    </div>
+
+                    <div class="section-header" style="margin-top: 2rem;">
+                        <span class="section-icon">?</span>
+                        <span class="section-title">HOW IT WORKS</span>
+                    </div>
+                    
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>1. Upload File</h4>
+                            <ul>
+                                <li><strong>Formats:</strong> CSV, XLSX, XLS</li>
+                                <li><strong>Auto-clean:</strong> Removes empty rows</li>
+                                <li><strong>Preview:</strong> See data summary</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4>2. Select Columns</h4>
+                            <ul>
+                                <li><strong>Click:</strong> Select/deselect columns</li>
+                                <li><strong>Search:</strong> Find columns quickly</li>
+                                <li><strong>Order:</strong> Columns export in selection order</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4>3. Export Data</h4>
+                            <ul>
+                                <li><strong>Excel:</strong> Download as .xlsx</li>
+                                <li><strong>CSV:</strong> Download as .csv</li>
+                                <li><strong>Preview:</strong> See before download</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column Selection Section -->
+                <div id="columnSelection" class="hidden">
+                    <div class="section-header">
+                        <span class="section-icon">📋</span>
+                        <span class="section-title">SELECT COLUMNS TO EXPORT</span>
+                    </div>
+
+                    <div class="stats-grid" id="fileStats"></div>
+
+                    <div class="config-card">
+                        <h4>Available Columns</h4>
+                        
+                        <input type="text" id="columnSearch" class="search-box" placeholder="🔍 Search columns..." oninput="filterColumns()">
+                        
+                        <div class="column-actions">
+                            <button class="btn btn-secondary" onclick="selectAllColumns()">✓ Select All</button>
+                            <button class="btn btn-secondary" onclick="deselectAllColumns()">✗ Deselect All</button>
+                            <button class="btn btn-secondary" onclick="invertSelection()">⇄ Invert Selection</button>
+                        </div>
+
+                        <div class="column-grid" id="columnGrid"></div>
+                    </div>
+
+                    <div class="selection-summary" id="selectionSummary">
+                        <h5>Selected Columns (<span id="selectedCount">0</span>)</h5>
+                        <div class="selected-list" id="selectedList">None selected</div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="previewExport()">👁️ Preview Export</button>
+                        <button class="btn btn-secondary" onclick="resetApplication()">🔄 Start Over</button>
+                    </div>
+                </div>
+
+                <!-- Preview & Export Section -->
+                <div id="previewSection" class="hidden">
+                    <div class="section-header">
+                        <span class="section-icon">✓</span>
+                        <span class="section-title">FINAL DATABASE PREVIEW</span>
+                    </div>
+
+                    <div class="stats-grid" id="exportStats"></div>
+
+                    <div class="config-card">
+                        <h4>Data Preview</h4>
+                        <div id="previewTable" class="preview-table"></div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-success" onclick="downloadData('xlsx')">📥 Download Excel (.xlsx)</button>
+                        <button class="btn btn-primary" onclick="downloadData('csv')">📥 Download CSV (.csv)</button>
+                        <button class="btn btn-gold" onclick="backToSelection()">← Back to Column Selection</button>
+                        <button class="btn btn-secondary" onclick="resetApplication()">🔄 Start Over</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-footer">
+            <p style="margin: 0; font-weight: 700;">National Malaria Control Programme</p>
+            <p>Ministry of Health and Sanitation, Sierra Leone</p>
+            <p style="font-size: 10px;">© 2025 Informatics Consultancy Firm-Sierra Leone (ICF-SL)</p>
+        </div>
+    </div>
+
+    <script>
+        let fileData = null;
+        let selectedColumns = [];
+        let allColumns = [];
+
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            if (type === 'success') setTimeout(() => container.innerHTML = '', 5000);
+        }
+
+        function showLoading(show, message = 'Processing...') {
+            const loading = document.getElementById('loading');
+            document.getElementById('loadingText').textContent = message;
+            loading.classList.toggle('hidden', !show);
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading(true, 'Processing file...');
+
+            try {
+                fileData = await readFile(file);
+                allColumns = fileData.columns;
+                selectedColumns = [];
+                
+                displayFileInfo(file, fileData);
+                document.getElementById('uploadArea').classList.add('file-loaded');
+                displayColumnSelection();
+                
+                showAlert(`File loaded successfully! ${fileData.rowCount} rows, ${fileData.columns.length} columns.`, 'success');
+            } catch (error) {
+                showAlert(`Error reading file: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const ext = file.name.toLowerCase().split('.').pop();
+                const reader = new FileReader();
+
+                reader.onload = e => {
+                    try {
+                        let data;
+                        if (ext === 'csv') {
+                            data = Papa.parse(e.target.result, { header: true, skipEmptyLines: true, dynamicTyping: true }).data;
+                        } else if (ext === 'xlsx' || ext === 'xls') {
+                            const wb = XLSX.read(e.target.result, { type: 'array' });
+                            data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                        } else {
+                            reject(new Error(`Unsupported: ${ext}`));
+                            return;
+                        }
+                        const cleaned = cleanData(data);
+                        const columns = Object.keys(cleaned[0] || {});
+                        const columnTypes = detectColumnTypes(cleaned, columns);
+                        resolve({ name: file.name, data: cleaned, columns, columnTypes, rowCount: cleaned.length });
+                    } catch (error) { reject(error); }
+                };
+
+                reader.onerror = () => reject(new Error('Error reading file'));
+                ext === 'csv' ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function cleanData(data) {
+            if (!data || data.length === 0) return [];
+            
+            // Clean column names first
+            const cleaned = data.map(row => {
+                const clean = {};
+                Object.keys(row).forEach(key => {
+                    const k = String(key).trim();
+                    // Only remove truly empty column names
+                    if (k !== '' && k !== 'null' && k.toLowerCase() !== 'undefined') {
+                        clean[k] = row[key];
+                    }
+                });
+                return clean;
+            });
+            
+            // Remove completely empty rows (where ALL columns are empty/null)
+            return cleaned.filter(row => {
+                return Object.values(row).some(v => 
+                    v !== null && 
+                    v !== undefined && 
+                    String(v).trim() !== ''
+                );
+            });
+        }
+
+        function detectColumnTypes(data, columns) {
+            const types = {};
+            columns.forEach(col => {
+                const samples = data.slice(0, 100).map(r => r[col]).filter(v => v !== null && v !== undefined && v !== '');
+                if (samples.length === 0) { types[col] = 'empty'; return; }
+                
+                const allNumbers = samples.every(v => !isNaN(parseFloat(v)) && isFinite(v));
+                const allDates = samples.every(v => !isNaN(Date.parse(v)) && String(v).match(/\d{4}|\d{1,2}[\/\-]\d{1,2}/));
+                
+                if (allNumbers) types[col] = 'number';
+                else if (allDates) types[col] = 'date';
+                else types[col] = 'text';
+            });
+            return types;
+        }
+
+        function displayFileInfo(file, data) {
+            const info = document.getElementById('fileInfo');
+            info.innerHTML = `
+                <div class="file-info">
+                    <h5>✓ ${file.name}</h5>
+                    <p><strong>Rows:</strong> ${data.rowCount.toLocaleString()} | <strong>Columns:</strong> ${data.columns.length}</p>
+                </div>
+            `;
+            info.classList.remove('hidden');
+        }
+
+        function displayColumnSelection() {
+            // Stats
+            document.getElementById('fileStats').innerHTML = `
+                <div class="stats-card"><div class="metric-value">${fileData.rowCount.toLocaleString()}</div><p>Total Rows</p></div>
+                <div class="stats-card"><div class="metric-value">${fileData.columns.length}</div><p>Total Columns</p></div>
+                <div class="stats-card success" id="selectedCard"><div class="metric-value">0</div><p>Selected Columns</p></div>
+            `;
+
+            // Column grid
+            renderColumnGrid(fileData.columns);
+
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('columnSelection').classList.remove('hidden');
+        }
+
+        function renderColumnGrid(columns) {
+            const grid = document.getElementById('columnGrid');
+            grid.innerHTML = columns.map(col => {
+                const type = fileData.columnTypes[col] || 'text';
+                const typeLabel = type === 'number' ? '123' : type === 'date' ? '📅' : 'ABC';
+                const isSelected = selectedColumns.includes(col);
+                const orderIndex = selectedColumns.indexOf(col);
+                return `
+                    <div class="column-item ${isSelected ? 'selected' : ''}" onclick="toggleColumn('${col}')" data-column="${col}">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleColumn('${col}')">
+                        <span class="col-name">${col}</span>
+                        <span class="col-type">${typeLabel}</span>
+                        ${isSelected ? `<span class="order-badge">${orderIndex + 1}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleColumn(col) {
+            const idx = selectedColumns.indexOf(col);
+            if (idx > -1) {
+                selectedColumns.splice(idx, 1);
+            } else {
+                selectedColumns.push(col);
+            }
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            // Update grid
+            document.querySelectorAll('.column-item').forEach(item => {
+                const col = item.dataset.column;
+                const isSelected = selectedColumns.includes(col);
+                const orderIndex = selectedColumns.indexOf(col);
+                
+                item.classList.toggle('selected', isSelected);
+                item.querySelector('input').checked = isSelected;
+                
+                const existingBadge = item.querySelector('.order-badge');
+                if (existingBadge) existingBadge.remove();
+                
+                if (isSelected) {
+                    const badge = document.createElement('span');
+                    badge.className = 'order-badge';
+                    badge.textContent = orderIndex + 1;
+                    item.appendChild(badge);
+                }
+            });
+
+            // Update summary
+            document.getElementById('selectedCount').textContent = selectedColumns.length;
+            document.getElementById('selectedList').textContent = selectedColumns.length ? selectedColumns.join(' → ') : 'None selected';
+            
+            // Update stats card
+            const card = document.getElementById('selectedCard');
+            if (card) card.querySelector('.metric-value').textContent = selectedColumns.length;
+        }
+
+        function filterColumns() {
+            const search = document.getElementById('columnSearch').value.toLowerCase();
+            const filtered = fileData.columns.filter(col => col.toLowerCase().includes(search));
+            renderColumnGrid(filtered);
+        }
+
+        function selectAllColumns() {
+            const search = document.getElementById('columnSearch').value.toLowerCase();
+            const visibleColumns = fileData.columns.filter(col => col.toLowerCase().includes(search));
+            visibleColumns.forEach(col => {
+                if (!selectedColumns.includes(col)) selectedColumns.push(col);
+            });
+            updateSelectionUI();
+        }
+
+        function deselectAllColumns() {
+            const search = document.getElementById('columnSearch').value.toLowerCase();
+            const visibleColumns = fileData.columns.filter(col => col.toLowerCase().includes(search));
+            selectedColumns = selectedColumns.filter(col => !visibleColumns.includes(col));
+            updateSelectionUI();
+        }
+
+        function invertSelection() {
+            const search = document.getElementById('columnSearch').value.toLowerCase();
+            const visibleColumns = fileData.columns.filter(col => col.toLowerCase().includes(search));
+            visibleColumns.forEach(col => {
+                const idx = selectedColumns.indexOf(col);
+                if (idx > -1) selectedColumns.splice(idx, 1);
+                else selectedColumns.push(col);
+            });
+            updateSelectionUI();
+        }
+
+        function previewExport() {
+            if (selectedColumns.length === 0) {
+                showAlert('Please select at least one column to export', 'warning');
+                return;
+            }
+
+            // Export stats
+            document.getElementById('exportStats').innerHTML = `
+                <div class="stats-card"><div class="metric-value">${fileData.rowCount.toLocaleString()}</div><p>Total Rows</p></div>
+                <div class="stats-card success"><div class="metric-value">${selectedColumns.length}</div><p>Selected Columns</p></div>
+                <div class="stats-card"><div class="metric-value">${(fileData.rowCount * selectedColumns.length).toLocaleString()}</div><p>Total Cells</p></div>
+            `;
+
+            // Preview table
+            const preview = fileData.data.slice(0, 20);
+            document.getElementById('previewTable').innerHTML = `
+                <table>
+                    <thead><tr>${selectedColumns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                    <tbody>${preview.map(row => `<tr>${selectedColumns.map(c => `<td>${row[c] !== undefined && row[c] !== null ? row[c] : ''}</td>`).join('')}</tr>`).join('')}</tbody>
+                </table>
+                <p style="text-align:center;color:#666;font-size:11px;padding:0.5rem;">Showing ${preview.length} of ${fileData.rowCount.toLocaleString()} rows</p>
+            `;
+
+            document.getElementById('columnSelection').classList.add('hidden');
+            document.getElementById('previewSection').classList.remove('hidden');
+        }
+
+        function downloadData(format) {
+            if (selectedColumns.length === 0) {
+                showAlert('No columns selected', 'warning');
+                return;
+            }
+
+            const exportData = fileData.data.map(row => {
+                const newRow = {};
+                selectedColumns.forEach(col => newRow[col] = row[col]);
+                return newRow;
+            });
+
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const baseName = fileData.name.replace(/\.[^/.]+$/, '');
+
+            if (format === 'xlsx') {
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Final Database');
+                XLSX.writeFile(wb, `${baseName}_final_${timestamp}.xlsx`);
+            } else {
+                const headers = selectedColumns;
+                const csv = [headers.join(','), ...exportData.map(row => headers.map(h => {
+                    let v = row[h] !== undefined && row[h] !== null ? row[h] : '';
+                    if (typeof v === 'string' && (v.includes(',') || v.includes('"') || v.includes('\n'))) v = '"' + v.replace(/"/g, '""') + '"';
+                    return v;
+                }).join(','))].join('\n');
+                
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${baseName}_final_${timestamp}.csv`;
+                link.click();
+            }
+            
+            showAlert(`Downloaded final database (${fileData.rowCount.toLocaleString()} rows, ${selectedColumns.length} columns)`, 'success');
+        }
+
+        function backToSelection() {
+            document.getElementById('previewSection').classList.add('hidden');
+            document.getElementById('columnSelection').classList.remove('hidden');
+        }
+
+        function resetApplication() {
+            fileData = null;
+            selectedColumns = [];
+            allColumns = [];
+
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').classList.add('hidden');
+            document.getElementById('uploadArea').classList.remove('file-loaded');
+            document.getElementById('columnSearch').value = '';
+
+            document.getElementById('uploadSection').classList.remove('hidden');
+            document.getElementById('columnSelection').classList.add('hidden');
+            document.getElementById('previewSection').classList.add('hidden');
+            document.getElementById('alertContainer').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
